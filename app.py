@@ -92,8 +92,8 @@ def init_state():
             import traceback
             traceback.print_exc()
     if "bridge_session_ref" not in st.session_state:
-    st.session_state.bridge_session_ref = {"session": None}
-    start_bridge(st.session_state.bridge_session_ref, port=8765)
+        st.session_state.bridge_session_ref = {"session": None}
+        start_bridge(st.session_state.bridge_session_ref, port=8765)
             
 
 
@@ -417,12 +417,12 @@ def main():
 
         chat_box = st.container(height=420)
         # Browser mic capture + audio playback component
-st.components.v1.html("""
-<script>
-const WS_URL = "ws://" + window.location.hostname + ":8765";
-let ws, audioCtx, processor, source, stream;
-let playbackQueue = [];
-let isPlaying = false;
+        st.components.v1.html("""
+                 <script>
+                 const WS_URL = "ws://" + window.location.hostname + ":8765";
+                 let ws, audioCtx, processor, source, stream;
+                 let playbackQueue = [];
+                 let isPlaying = false;
 
 function connectWS() {
     ws = new WebSocket(WS_URL);
@@ -507,7 +507,7 @@ function toggleMic() {
   </div>
 </div>
 """, height=90)
-with chat_box:
+        with chat_box:
             if not st.session_state.chat_log:
                 st.markdown("""
                 <div style="text-align:center;padding:80px 40px;color:#475569;">
