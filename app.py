@@ -15,6 +15,8 @@ import sys
 import queue
 import os
 from dotenv import load_dotenv
+from ws_audio_bridge import start_bridge
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -89,6 +91,10 @@ def init_state():
             print(f"[LEARNER SYSTEM] Initialization failed: {e}", flush=True)
             import traceback
             traceback.print_exc()
+    if "bridge_session_ref" not in st.session_state:
+    st.session_state.bridge_session_ref = {"session": None}
+    start_bridge(st.session_state.bridge_session_ref, port=8765)
+            
 
 
 def detect_phase(info):
@@ -195,6 +201,7 @@ def launch_voice_session(api_key: str):
         on_learner_context=on_learner_context,
     )
     st.session_state.session = session
+    st.session_state.bridge_session_ref["session"] = session
     print(f"[DEBUG] VidyaVoiceSession created", flush=True)
 
     def _run():
@@ -409,7 +416,98 @@ def main():
         </div>""", unsafe_allow_html=True)
 
         chat_box = st.container(height=420)
-        with chat_box:
+        # Browser mic capture + audio playback component
+st.components.v1.html("""
+<script>
+const WS_URL = "ws://" + window.location.hostname + ":8765";
+let ws, audioCtx, processor, source, stream;
+let playbackQueue = [];
+let isPlaying = false;
+
+function connectWS() {
+    ws = new WebSocket(WS_URL);
+    ws.binaryType = "arraybuffer";
+    ws.onopen = () => console.log("[Audio] WS connected");
+    ws.onmessage = async (evt) => {
+        const msg = JSON.parse(evt.data);
+        if (msg.type === "audio") {
+            const raw = atob(msg.data);
+            const buf = new Uint8Array(raw.length);
+            for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+            playbackQueue.push(buf.buffer);
+            if (!isPlaying) drainQueue();
+        }
+    };
+    ws.onclose = () => { console.log("[Audio] WS closed, retrying..."); setTimeout(connectWS, 2000); };
+    ws.onerror = (e) => console.error("[Audio] WS error", e);
+}
+
+async function drainQueue() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+    isPlaying = true;
+    while (playbackQueue.length > 0) {
+        const pcmBuffer = playbackQueue.shift();
+        const samples = new Int16Array(pcmBuffer);
+        const float32 = new Float32Array(samples.length);
+        for (let i = 0; i < samples.length; i++) float32[i] = samples[i] / 32768.0;
+        const audioBuffer = audioCtx.createBuffer(1, float32.length, 24000);
+        audioBuffer.copyToChannel(float32, 0);
+        const src = audioCtx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.connect(audioCtx.destination);
+        await new Promise(resolve => { src.onended = resolve; src.start(); });
+    }
+    isPlaying = false;
+}
+
+async function startMic() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 16000, channelCount: 1 }, video: false });
+    source = audioCtx.createMediaStreamSource(stream);
+    processor = audioCtx.createScriptProcessor(4096, 1, 1);
+    processor.onaudioprocess = (e) => {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        const float32 = e.inputBuffer.getChannelData(0);
+        const int16 = new Int16Array(float32.length);
+        for (let i = 0; i < float32.length; i++) int16[i] = Math.max(-32768, Math.min(32767, float32[i] * 32768));
+        const b64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
+        ws.send(JSON.stringify({ type: "audio", data: b64 }));
+    };
+    source.connect(processor);
+    processor.connect(audioCtx.destination);
+    document.getElementById("mic-btn").textContent = "🔴 Mic Active";
+    document.getElementById("mic-btn").style.background = "#ef4444";
+}
+
+function stopMic() {
+    if (processor) { processor.disconnect(); processor = null; }
+    if (source) { source.disconnect(); source = null; }
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    document.getElementById("mic-btn").textContent = "🎤 Start Mic";
+    document.getElementById("mic-btn").style.background = "#6d28d9";
+}
+
+connectWS();
+
+window.micActive = false;
+function toggleMic() {
+    window.micActive ? stopMic() : startMic();
+    window.micActive = !window.micActive;
+}
+</script>
+<div style="text-align:center;padding:8px 0;">
+  <button id="mic-btn" onclick="toggleMic()"
+    style="background:#6d28d9;color:white;border:none;border-radius:12px;
+           padding:10px 28px;font-size:15px;font-weight:700;cursor:pointer;
+           box-shadow:0 0 16px #6d28d944;">
+    🎤 Start Mic
+  </button>
+  <div style="font-size:11px;color:#64748b;margin-top:6px;">
+    Click to allow mic access — audio goes directly to Gemini
+  </div>
+</div>
+""", height=90)
+with chat_box:
             if not st.session_state.chat_log:
                 st.markdown("""
                 <div style="text-align:center;padding:80px 40px;color:#475569;">
