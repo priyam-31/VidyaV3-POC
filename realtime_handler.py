@@ -466,7 +466,7 @@ class VidyaVoiceSession:
                                 if part.inline_data and self._ws:
                                     try:
                                         audio_b64 = base64.b64encode(part.inline_data.data).decode()
-                                        await self._ws.send(json.dumps({
+                                        await self._ws.send_text(json.dumps({
                                             "type": "audio",
                                             "data": audio_b64
                                         }))
