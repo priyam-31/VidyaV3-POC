@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vidya — Gemini Live Voice</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:       #080C14;
+    --surface:  #0F1623;
+    --border:   #1C2537;
+    --accent:   #7C5CFC;
+    --accent2:  #A78BFA;
+    --green:    #22C55E;
+    --orange:   #F97316;
+    --red:      #EF4444;
+    --yellow:   #FBBF24;
+    --text:     #E2E8F0;
+    --muted:    #64748B;
+    --subtle:   #334155;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  #sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 24px 16px;
+    gap: 20px;
+  }
+
+  .logo {
+    text-align: center;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #A78BFA, #6D28D9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+  }
+  .logo-sub {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* Status pill */
+  #status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--red);
+    box-shadow: 0 0 6px var(--red);
+    flex-shrink: 0;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  #status-dot.green  { background: var(--green);  box-shadow: 0 0 8px var(--green); }
+  #status-dot.yellow { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  #status-dot.pulse  { animation: pulse 1.2s infinite; }
+  #status-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* Section header */
+  .section-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent2);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+  }
+
+  /* Info cards */
+  .info-card {
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+    opacity: 0.5;
+    transition: all 0.3s;
+  }
+  .info-card.filled {
+    border-style: solid;
+    border-color: var(--subtle);
+    opacity: 1;
+  }
+  .info-label {
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .info-value {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+    font-style: italic;
+  }
+  .info-card.filled .info-value {
+    color: var(--text);
+    font-style: normal;
+  }
+
+  /* Progress bar */
+  .progress-wrap { margin-top: 4px; }
+  .progress-label {
+    font-size: 10px;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .progress-track {
+    background: var(--surface);
+    border-radius: 8px;
+    height: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #6D28D9, #A78BFA);
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+
+  /* Phase tracker */
+  .phase-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+  .phase-icon { font-size: 13px; font-weight: 700; min-width: 14px; }
+  .phase-name { font-size: 12px; }
+
+  /* ── Main ── */
+  #main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #topbar {
+    padding: 20px 28px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  #topbar h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  #topbar p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* Chat */
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .empty-state {
+    margin: auto;
+    text-align: center;
+    color: var(--muted);
+    padding: 40px;
+  }
+  .empty-state .icon { font-size: 52px; margin-bottom: 12px; }
+  .empty-state .title { font-size: 16px; font-weight: 600; color: var(--subtle); }
+  .empty-state .sub { font-size: 13px; margin-top: 6px; }
+
+  .msg {
+    display: flex;
+    gap: 10px;
+    max-width: 75%;
+    animation: fadeUp 0.3s ease;
+  }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg.assistant { align-self: flex-start; }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .msg.assistant .avatar { background: linear-gradient(135deg, #6D28D9, #A78BFA); }
+  .msg.user .avatar { background: var(--surface); border: 1px solid var(--border); }
+
+  .bubble {
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  .msg.assistant .bubble {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top-left-radius: 4px;
+    color: var(--text);
+  }
+  .msg.user .bubble {
+    background: linear-gradient(135deg, #4C1D95, #6D28D9);
+    border-top-right-radius: 4px;
+    color: #EDE9FE;
+  }
+
+  .msg-time {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    padding: 0 4px;
+  }
+  .msg.user .msg-time { text-align: right; }
+
+  /* Controls */
+  #controls {
+    padding: 16px 28px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  button {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    padding: 10px 20px;
+    transition: all 0.2s;
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #btn-connect {
+    background: linear-gradient(135deg, #6D28D9, #A78BFA);
+    color: white;
+    padding: 12px 28px;
+    font-size: 15px;
+    font-weight: 600;
+  }
+  #btn-connect:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+
+  #btn-stop {
+    background: #1C2537;
+    color: var(--red);
+    border: 1px solid #2D1A1A;
+  }
+  #btn-stop:hover:not(:disabled) { background: #2D1A1A; }
+
+  #btn-new {
+    background: var(--surface);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  #btn-new:hover:not(:disabled) { color: var(--text); border-color: var(--subtle); }
+
+  #live-badge {
+    margin-left: auto;
+    background: #0A1F0A;
+    border: 1px solid var(--green);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--green);
+    display: none;
+  }
+
+  /* Right panel */
+  #panel {
+    width: 160px;
+    min-width: 160px;
+    border-left: 1px solid var(--border);
+    padding: 20px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 38px; font-weight: 800; color: var(--accent2); margin: 4px 0; }
+
+  .phase-card {
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+  }
+  .phase-card .p-label { font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .phase-card .p-name { font-size: 13px; font-weight: 700; margin: 6px 0; }
+
+  .aha-card {
+    background: linear-gradient(135deg, #065F46, #047857);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+    display: none;
+  }
+  .aha-card .aha-icon { font-size: 24px; }
+  .aha-card .aha-text { font-size: 12px; font-weight: 700; color: #D1FAE5; margin-top: 4px; }
+
+  /* Animations */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside id="sidebar">
+  <div class="logo">
+    <div class="logo-text">VIDYA</div>
+    <div class="logo-sub">Gemini Live · Voice</div>
+  </div>
+
+  <div>
+    <div id="status-row">
+      <div id="status-dot"></div>
+      <span id="status-label">Disconnected</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">📋 Extracted Info</div>
+    <div class="info-card" id="card-name">
+      <div class="info-label">👤 Name</div>
+      <div class="info-value" id="val-name">Waiting...</div>
+    </div>
+    <div class="info-card" id="card-background">
+      <div class="info-label">🏫 Background</div>
+      <div class="info-value" id="val-background">Waiting...</div>
+    </div>
+    <div class="info-card" id="card-career_context">
+      <div class="info-label">💼 Trigger</div>
+      <div class="info-value" id="val-career_context">Waiting...</div>
+    </div>
+    <div class="info-card" id="card-skills">
+      <div class="info-label">⚡ Skills</div>
+      <div class="info-value" id="val-skills">Waiting...</div>
+    </div>
+    <div class="info-card" id="card-goal">
+      <div class="info-label">🎯 Goal</div>
+      <div class="info-value" id="val-goal">Waiting...</div>
+    </div>
+    <div class="info-card" id="card-time_commitment">
+      <div class="info-label">⏰ Time/Week</div>
+      <div class="info-value" id="val-time_commitment">Waiting...</div>
+    </div>
+    <div class="info-card" id="card-preferred_language">
+      <div class="info-label">🌐 Language</div>
+      <div class="info-value" id="val-preferred_language">Waiting...</div>
+    </div>
+
+    <div class="progress-wrap" style="margin-top:10px;">
+      <div class="progress-label" id="progress-label">Info gathered: 0/7 (0%)</div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">🗺️ Phases</div>
+    <div id="phase-list"></div>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<main id="main">
+  <div id="topbar">
+    <h1>🎙️ Vidya — Voice Mode</h1>
+    <p>Real-time voice conversation. Speak naturally — Hindi, English, or mix.</p>
+  </div>
+
+  <div id="chat">
+    <div class="empty-state" id="empty">
+      <div class="icon">🎤</div>
+      <div class="title">Connect and start speaking</div>
+      <div class="sub">Vidya will greet you and adapt to your language</div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button id="btn-connect">🔌 Connect &amp; Listen</button>
+    <button id="btn-stop" disabled>⏹️ Stop Session</button>
+    <button id="btn-new">🔄 New Conversation</button>
+    <div id="live-badge">🔴 LIVE — Speak now</div>
+  </div>
+</main>
+
+<!-- ── Right Panel ── -->
+<div id="panel">
+  <div class="stat-card">
+    <div class="stat-label">Turn</div>
+    <div class="stat-value" id="turn-count">0</div>
+  </div>
+
+  <div class="phase-card" id="phase-card" style="border: 1px solid var(--border);">
+    <div class="p-label" id="phase-num-label">Phase 1</div>
+    <div class="p-name" id="phase-name" style="color: var(--accent2);">Rapport &amp; Language</div>
+  </div>
+
+  <div class="aha-card" id="aha-card">
+    <div class="aha-icon">✨</div>
+    <div class="aha-text">AHA REACHED</div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+const PHASES = [
+  { name: "Rapport & Language",  color: "#A78BFA" },
+  { name: "Identity & Context",  color: "#60A5FA" },
+  { name: "Urgency & Pain",      color: "#F97316" },
+  { name: "Skills & Resources",  color: "#34D399" },
+  { name: "Goal & Belief",       color: "#FBBF24" },
+  { name: "Commitment",          color: "#F472B6" },
+  { name: "Future You Reveal",   color: "#22C55E" },
+];
+
+const INFO_KEYS = ["name","background","career_context","skills","goal","time_commitment","preferred_language"];
+
+let state = {
+  connected: false,
+  turnCount: 0,
+  ahaReached: false,
+  info: {},
+  transcript: [],
+  status: "disconnected",
+  ws: null,
+  audioCtx: null,
+  mediaStream: null,
+  processor: null,
+  pollTimer: null,
+  lastTranscriptLen: 0,
+};
+
+// ── Phase list render ──────────────────────────────────────────────────────
+function renderPhaseList() {
+  const filled = INFO_KEYS.filter(k => state.info[k]).length;
+  const phaseIdx = Math.min(filled, 6);
+  const list = document.getElementById("phase-list");
+  list.innerHTML = PHASES.map((p, i) => {
+    const active = i === phaseIdx, done = i < phaseIdx;
+    const icon = active ? "●" : (done ? "✓" : "○");
+    const color = active ? p.color : (done ? "#22C55E" : "#334155");
+    const textColor = active ? "#E2E8F0" : (done ? "#94A3B8" : "#475569");
+    const weight = active ? "700" : "400";
+    return `<div class="phase-item">
+      <span class="phase-icon" style="color:${color}">${icon}</span>
+      <span class="phase-name" style="color:${textColor};font-weight:${weight}">${p.name}</span>
+    </div>`;
+  }).join("");
+
+  // Update phase card
+  const p = PHASES[phaseIdx];
+  document.getElementById("phase-num-label").textContent = `Phase ${phaseIdx + 1}`;
+  document.getElementById("phase-name").textContent = p.name;
+  document.getElementById("phase-name").style.color = p.color;
+  document.getElementById("phase-card").style.borderColor = p.color + "44";
+}
+
+// ── Info panel update ──────────────────────────────────────────────────────
+function updateInfo(info) {
+  state.info = info || {};
+  INFO_KEYS.forEach(k => {
+    const val = state.info[k];
+    const card = document.getElementById(`card-${k}`);
+    const valEl = document.getElementById(`val-${k}`);
+    if (val) {
+      card.classList.add("filled");
+      valEl.textContent = val;
+    } else {
+      card.classList.remove("filled");
+      valEl.textContent = "Waiting...";
+    }
+  });
+
+  const filled = INFO_KEYS.filter(k => state.info[k]).length;
+  const pct = Math.round(filled / 7 * 100);
+  document.getElementById("progress-label").textContent = `Info gathered: ${filled}/7 (${pct}%)`;
+  document.getElementById("progress-fill").style.width = pct + "%";
+
+  renderPhaseList();
+}
+
+// ── Status update ──────────────────────────────────────────────────────────
+function updateStatus(s) {
+  state.status = s;
+  const dot = document.getElementById("status-dot");
+  const label = document.getElementById("status-label");
+  const badge = document.getElementById("live-badge");
+
+  dot.className = "";
+  if (s === "listening" || s === "ready") {
+    dot.classList.add("green", "pulse");
+    badge.style.display = "block";
+  } else if (s === "connecting") {
+    dot.classList.add("yellow", "pulse");
+    badge.style.display = "none";
+  } else {
+    badge.style.display = "none";
+  }
+  label.textContent = s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// ── Chat rendering ─────────────────────────────────────────────────────────
+function appendMessage(role, text) {
+  const chat = document.getElementById("chat");
+  const empty = document.getElementById("empty");
+  if (empty) empty.remove();
+
+  // Check if last bubble is same role — append to it
+  const last = chat.querySelector(".msg:last-child");
+  if (last && last.dataset.role === role) {
+    last.querySelector(".bubble").textContent += " " + text;
+    return;
+  }
+
+  const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const div = document.createElement("div");
+  div.className = `msg ${role}`;
+  div.dataset.role = role;
+  div.innerHTML = `
+    <div class="avatar">${role === "assistant" ? "🎓" : "🧑"}</div>
+    <div>
+      <div class="bubble">${text}</div>
+      <div class="msg-time">${now}</div>
+    </div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+
+  if (role === "user") {
+    state.turnCount++;
+    document.getElementById("turn-count").textContent = state.turnCount;
+  }
+
+  // AHA detection
+  if (role === "assistant" && !state.ahaReached &&
+      /12 week|12 hafte|ready\?|ready ho\?/i.test(text)) {
+    state.ahaReached = true;
+    document.getElementById("aha-card").style.display = "block";
+  }
+}
+
+// ── Polling ────────────────────────────────────────────────────────────────
+async function poll() {
+  try {
+    const res = await fetch("/state");
+    const data = await res.json();
+    updateStatus(data.status);
+    updateInfo(data.info);
+
+    // Render new transcript entries
+    const entries = data.transcript || [];
+    for (let i = state.lastTranscriptLen; i < entries.length; i++) {
+      appendMessage(entries[i].role, entries[i].text);
+    }
+    state.lastTranscriptLen = entries.length;
+  } catch (e) {
+    console.warn("Poll error", e);
+  }
+}
+
+// ── Audio capture ──────────────────────────────────────────────────────────
+async function startMicCapture() {
+  const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+  state.ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
+  state.ws.onopen = () => console.log("[WS] Connected to bridge");
+  state.ws.onclose = () => console.log("[WS] Bridge disconnected");
+  state.ws.onerror = e => console.error("[WS] Error", e);
+
+  // Wait for WS to open
+  await new Promise((res, rej) => {
+    state.ws.onopen = res;
+    state.ws.onerror = rej;
+  });
+
+  state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  state.audioCtx = new AudioContext({ sampleRate: 16000 });
+  const source = state.audioCtx.createMediaStreamSource(state.mediaStream);
+
+  // ScriptProcessor to get raw PCM
+  state.processor = state.audioCtx.createScriptProcessor(1024, 1, 1);
+  state.processor.onaudioprocess = (e) => {
+    if (state.ws.readyState !== WebSocket.OPEN) return;
+    const float32 = e.inputBuffer.getChannelData(0);
+    // Convert float32 → int16 PCM
+    const int16 = new Int16Array(float32.length);
+    for (let i = 0; i < float32.length; i++) {
+      int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
+    }
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
+    state.ws.send(JSON.stringify({ type: "audio", data: b64 }));
+  };
+
+  source.connect(state.processor);
+  state.processor.connect(state.audioCtx.destination);
+  console.log("[Mic] Capture started at 16kHz");
+}
+
+// ── Audio playback ─────────────────────────────────────────────────────────
+// Gemini sends audio back over the same WS
+function setupAudioPlayback() {
+  if (!state.ws) return;
+  const playCtx = new AudioContext({ sampleRate: 24000 });
+
+  state.ws.onmessage = async (ev) => {
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.type !== "audio") return;
+      const raw = atob(msg.data);
+      const int16 = new Int16Array(raw.length / 2);
+      for (let i = 0; i < int16.length; i++) {
+        int16[i] = (raw.charCodeAt(i * 2)) | (raw.charCodeAt(i * 2 + 1) << 8);
+      }
+      const float32 = new Float32Array(int16.length);
+      for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+
+      const buf = playCtx.createBuffer(1, float32.length, 24000);
+      buf.copyToChannel(float32, 0);
+      const src = playCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(playCtx.destination);
+      src.start();
+    } catch (e) {
+      console.warn("[Audio playback]", e);
+    }
+  };
+}
+
+// ── Connect ────────────────────────────────────────────────────────────────
+async function connect() {
+  document.getElementById("btn-connect").disabled = true;
+  updateStatus("connecting");
+
+  try {
+    // WS connect starts the Gemini session automatically
+    await startMicCapture();
+
+
+
+
+    setupAudioPlayback();
+
+    state.connected = true;
+    document.getElementById("btn-connect").disabled = true;
+    document.getElementById("btn-stop").disabled = false;
+
+    // Start polling for transcript + info
+    state.pollTimer = setInterval(poll, 800);
+  } catch (e) {
+    console.error("Connect error", e);
+    updateStatus("error");
+    document.getElementById("btn-connect").disabled = false;
+  }
+}
+
+// ── Stop ───────────────────────────────────────────────────────────────────
+async function stopSession() {
+  if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type: "stop" }));
+
+  if (state.processor) { state.processor.disconnect(); state.processor = null; }
+  if (state.audioCtx)  { state.audioCtx.close(); state.audioCtx = null; }
+  if (state.mediaStream) { state.mediaStream.getTracks().forEach(t => t.stop()); state.mediaStream = null; }
+  if (state.ws) { state.ws.close(); state.ws = null; }
+  if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
+
+  state.connected = false;
+  updateStatus("disconnected");
+  document.getElementById("btn-connect").disabled = false;
+  document.getElementById("btn-stop").disabled = true;
+  document.getElementById("live-badge").style.display = "none";
+}
+
+// ── New Conversation ───────────────────────────────────────────────────────
+async function newConversation() {
+  await stopSession();
+  state.turnCount = 0;
+  state.ahaReached = false;
+  state.info = {};
+  state.transcript = [];
+  state.lastTranscriptLen = 0;
+  document.getElementById("turn-count").textContent = "0";
+  document.getElementById("aha-card").style.display = "none";
+  document.getElementById("chat").innerHTML = `
+    <div class="empty-state" id="empty">
+      <div class="icon">🎤</div>
+      <div class="title">Connect and start speaking</div>
+      <div class="sub">Vidya will greet you and adapt to your language</div>
+    </div>`;
+  updateInfo({});
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+document.getElementById("btn-connect").addEventListener("click", connect);
+document.getElementById("btn-stop").addEventListener("click", stopSession);
+document.getElementById("btn-new").addEventListener("click", newConversation);
+
+renderPhaseList();
+updateInfo({});
+</script>
+</body>
+</html>
