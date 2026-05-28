@@ -658,34 +658,48 @@ async function startMicCapture() {
 }
 
 // ── Audio playback ─────────────────────────────────────────────────────────
-// Gemini sends audio back over the same WS
 function setupAudioPlayback() {
   if (!state.ws) return;
+
   const playCtx = new AudioContext({ sampleRate: 24000 });
+  playCtx.resume();
+
+  let nextPlayTime = 0;
 
   state.ws.onmessage = async (ev) => {
     try {
       const msg = JSON.parse(ev.data);
       if (msg.type !== "audio") return;
-      const raw = atob(msg.data);
-      const int16 = new Int16Array(raw.length / 2);
-      for (let i = 0; i < int16.length; i++) {
-        int16[i] = (raw.charCodeAt(i * 2)) | (raw.charCodeAt(i * 2 + 1) << 8);
+
+      // base64 → binary → Int16 (little-endian) → Float32
+      const b64 = msg.data;
+      const binary = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const view = new DataView(binary.buffer);
+      const samples = binary.byteLength / 2;
+      const float32 = new Float32Array(samples);
+      for (let i = 0; i < samples; i++) {
+        float32[i] = view.getInt16(i * 2, true) / 32768.0;
       }
-      const float32 = new Float32Array(int16.length);
-      for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768;
+
+      if (float32.length === 0) return;
 
       const buf = playCtx.createBuffer(1, float32.length, 24000);
       buf.copyToChannel(float32, 0);
+
       const src = playCtx.createBufferSource();
       src.buffer = buf;
       src.connect(playCtx.destination);
-      src.start();
+
+      const now = playCtx.currentTime;
+      if (nextPlayTime < now) nextPlayTime = now + 0.05; // small buffer
+      src.start(nextPlayTime);
+      nextPlayTime += buf.duration;
     } catch (e) {
       console.warn("[Audio playback]", e);
     }
   };
 }
+
 
 // ── Connect ────────────────────────────────────────────────────────────────
 async function connect() {
