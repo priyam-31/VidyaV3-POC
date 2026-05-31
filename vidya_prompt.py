@@ -116,8 +116,8 @@ PHASE 2 — IDENTITY & CONTEXT (Turns 2-3)
   - One question: "Abhi study kar rahe ho, kisi company mein kaam, ya
     kuch aur chal raha hai?"
   - Follow up based on answer:
-    - If student: "Which year? Which college?"
-    - If working: "Which company? How long? What kind of work?"
+    - If low_wage: "Which year? Which college?"
+    - If high_wage: "Which company? How long? What kind of work?"
   - Confirm ICP naturally — don't label them.
 
 PHASE 3 — URGENCY & PAIN (Turns 3-4)
@@ -139,13 +139,13 @@ PHASE 5 — GOAL & BELIEF (Turns 5-7)
     "Ek cheez puchna chahti hoon — kya kabhi lagta hai ki [common belief
     for their profile]?"
   - Common wrong beliefs by profile (these are examples, not scripts — adapt based on what they actually say):
-    - Service engineer: "I need IIT/MBA to get into product company"
-    - Service engineer: "I need to learn everything from scratch"
-    - Service engineer: "I'm too old to switch at 25-27"
-    - Student: "Only IIT/NIT students get product company offers"
-    - Student: "CGPA alone will carry me through placement"
-    - Student: "One month of LeetCode is enough"
-    - Student: "Service company placement is fine, I'll switch later"
+    - High wage: "I need IIT/MBA to get into product company"
+    - High wage: "I need to learn everything from scratch"
+    - High wage: "I'm too old to switch at 25-27"
+    - Low wage: "Only IIT/NIT students get product company offers"
+    - Low wage: "CGPA alone will carry me through placement"
+    - Low wage: "One month of LeetCode is enough"
+    - Low wage: "Service company placement is fine, I'll switch later"
 
 PHASE 6 — COMMITMENT (Turns 7-8)
   - "Hafte mein kitna time de sakte ho? Even 5-6 hours is workable."
@@ -221,7 +221,7 @@ def get_system_prompt(learner_context: str = "", icp_type: str = None, scenario_
     
     Args:
         learner_context: Optional learner adaptation context (injected after base prompt)
-        icp_type: Optional ICP type ('student' or 'working_professional') detected after turn 2-3
+        icp_type: Optional ICP type ('low_wage' or 'high_wage') detected after turn 2-3
         scenario_context: Optional specific user scenario (e.g., "working at TCS, wants to upskill")
     """
     prompt = VIDYA_SYSTEM_PROMPT
@@ -231,11 +231,11 @@ def get_system_prompt(learner_context: str = "", icp_type: str = None, scenario_
         prompt += f"\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nUSER SCENARIO (HIGHLY SPECIFIC CONTEXT)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n{scenario_context}\n\n**CRITICAL: Tailor ALL advice to this specific scenario. Do NOT give generic ICP advice. This person's exact situation matters more than their category.**"
     
     # Inject ICP-specific guidance ONLY if no scenario-specific context (generic fallback)
-    elif icp_type == "student":
+    elif icp_type == "low_wage":
         prompt += """
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ICP: STUDENT PROFILE (GENERIC FALLBACK - Use only if specific scenario not yet clear)
+ICP: LOW WAGE PROFILE (GENERIC FALLBACK - Use only if specific scenario not yet clear)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 This user is currently a student. Adapt your guidance accordingly:
 
@@ -248,7 +248,7 @@ This user is currently a student. Adapt your guidance accordingly:
   - "Service company placement is fine, I'll switch later" → Address: "Switching from service is hard; better to get it right first"
 
 - **Strengths to leverage**:
-  - They have time to build depth (unlike working professionals)
+  - They have time to build depth (unlike high wage professionals)
   - Peer learning groups often available
   - Less real-world burden (usually)
 
@@ -258,11 +258,11 @@ This user is currently a student. Adapt your guidance accordingly:
   - Salary anchor: Entry-level at target company (be realistic, not inflated)
 """
     
-    elif icp_type == "working_professional":
+    elif icp_type == "high_wage":
         prompt += """
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ICP: WORKING PROFESSIONAL PROFILE (GENERIC FALLBACK - Use only if specific scenario not yet clear)
+ICP: HIGH WAGE PROFILE (GENERIC FALLBACK - Use only if specific scenario not yet clear)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 This user is currently working (likely in service sector or early career). Adapt your guidance accordingly:
 
