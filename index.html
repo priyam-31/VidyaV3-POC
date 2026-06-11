@@ -621,39 +621,71 @@ async function poll() {
 }
 
 // ── Audio capture ──────────────────────────────────────────────────────────
+// ── Audio capture ──────────────────────────────────────────────────────────
 async function startMicCapture() {
-  const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-  state.ws = new WebSocket(`${wsProtocol}//localhost:8000/ws/onboarding/test_user_fresh_001`);
+  // ✅ FORCE ws for local dev (fixes wss:// localhost failure)
+  const wsUrl = "ws://localhost:8000/ws/onboarding/test_user_001";
+
+  state.ws = new WebSocket(wsUrl);
+
   state.ws.onopen = () => console.log("[WS] Connected to bridge");
   state.ws.onclose = () => console.log("[WS] Bridge disconnected");
-  state.ws.onerror = e => console.error("[WS] Error", e);
+  state.ws.onerror = (e) => console.error("[WS] Error", e);
 
-  // Wait for WS to open
-  await new Promise((res, rej) => {
-    state.ws.onopen = res;
-    state.ws.onerror = rej;
+  // ✅ Proper open handling (don’t rely on onerror alone)
+  await new Promise((resolve, reject) => {
+    state.ws.onopen = () => {
+      console.log("[WS] Connection established");
+      resolve();
+    };
+
+    state.ws.onerror = (err) => {
+      console.error("[WS] Failed to connect", err);
+      reject(err);
+    };
+
+    state.ws.onclose = () => {
+      reject(new Error("WebSocket closed before connection"));
+    };
   });
 
-  state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  // ── Mic setup ─────────────────────────────────────────────
+  state.mediaStream = await navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: false
+  });
+
   state.audioCtx = new AudioContext({ sampleRate: 16000 });
   const source = state.audioCtx.createMediaStreamSource(state.mediaStream);
 
-  // ScriptProcessor to get raw PCM
   state.processor = state.audioCtx.createScriptProcessor(1024, 1, 1);
+
   state.processor.onaudioprocess = (e) => {
     if (state.ws.readyState !== WebSocket.OPEN) return;
+
     const float32 = e.inputBuffer.getChannelData(0);
-    // Convert float32 → int16 PCM
+
     const int16 = new Int16Array(float32.length);
     for (let i = 0; i < float32.length; i++) {
-      int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
+      int16[i] = Math.max(
+        -32768,
+        Math.min(32767, Math.round(float32[i] * 32767))
+      );
     }
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
-    state.ws.send(JSON.stringify({ type: "audio", data: b64 }));
+
+    const b64 = btoa(
+      String.fromCharCode(...new Uint8Array(int16.buffer))
+    );
+
+    state.ws.send(JSON.stringify({
+      type: "audio",
+      data: b64
+    }));
   };
 
   source.connect(state.processor);
   state.processor.connect(state.audioCtx.destination);
+
   console.log("[Mic] Capture started at 16kHz");
 }
 
