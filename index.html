@@ -426,9 +426,12 @@
 <!-- ── Main ── -->
 <main id="main">
   <div id="topbar">
-    <h1>🎙️ Vidya — Voice Mode</h1>
-    <p>Real-time voice conversation. Speak naturally — Hindi, English, or mix.</p>
-  </div>
+  <h1>🎙️ Vidya — Voice Mode</h1>
+  <p>Real-time voice conversation. Speak naturally — Hindi, English, or mix.</p>
+  <p style="font-size:11px; color: var(--accent2); margin-top:6px;">
+    <strong>User ID:</strong> <span id="user-id-display"></span>
+  </p>
+</div>
 
   <div id="chat">
     <div class="empty-state" id="empty">
@@ -477,6 +480,8 @@ const PHASES = [
 ];
 
 const INFO_KEYS = ["name","background","career_context","skills","goal","time_commitment","preferred_language"];
+const USER_ID = `test_user_${Date.now()}`;
+
 
 let state = {
   connected: false,
@@ -604,7 +609,7 @@ function appendMessage(role, text) {
 // ── Polling ────────────────────────────────────────────────────────────────
 async function poll() {
   try {
-    const res = await fetch("/state");
+    const res = await fetch("http://localhost:8000/state")
     const data = await res.json();
     updateStatus(data.status);
     updateInfo(data.info);
@@ -623,7 +628,7 @@ async function poll() {
 // ── Audio capture ──────────────────────────────────────────────────────────
 async function startMicCapture() {
   const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-  state.ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
+  state.ws = new WebSocket(`${wsProtocol}//localhost:8000/ws/onboarding/${USER_ID}`);
   state.ws.onopen = () => console.log("[WS] Connected to bridge");
   state.ws.onclose = () => console.log("[WS] Bridge disconnected");
   state.ws.onerror = e => console.error("[WS] Error", e);
@@ -768,6 +773,7 @@ async function newConversation() {
 document.getElementById("btn-connect").addEventListener("click", connect);
 document.getElementById("btn-stop").addEventListener("click", stopSession);
 document.getElementById("btn-new").addEventListener("click", newConversation);
+document.getElementById("user-id-display").textContent = USER_ID;
 
 renderPhaseList();
 updateInfo({});
