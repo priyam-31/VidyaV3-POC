@@ -604,7 +604,7 @@ function appendMessage(role, text) {
 // ── Polling ────────────────────────────────────────────────────────────────
 async function poll() {
   try {
-    const res = await fetch("http://localhost:8000/state")
+    const res = await fetch("https://api.atgvidya.click/state")
     const data = await res.json();
     updateStatus(data.status);
     updateInfo(data.info);
@@ -624,7 +624,7 @@ async function poll() {
 // ── Audio capture ──────────────────────────────────────────────────────────
 async function startMicCapture() {
   // ✅ FORCE ws for local dev (fixes wss:// localhost failure)
-  const wsUrl = "ws://localhost:8000/ws/onboarding/test_user_001";
+  const wsUrl =  "wss://api.atgvidya.click/ws/onboarding/test_user_001";
 
   state.ws = new WebSocket(wsUrl);
 
