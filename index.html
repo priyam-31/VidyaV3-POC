@@ -92,6 +92,49 @@
     letter-spacing: 1px;
   }
 
+  /* User ID card */
+  #user-id-card {
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+  #user-id-label {
+    font-size: 9px;
+    color: var(--accent2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  #user-id-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #user-id-value {
+    font-size: 11px;
+    color: var(--text);
+    font-family: monospace;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #btn-copy-id {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: var(--subtle);
+    color: var(--text);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    flex-shrink: 0;
+    font-family: 'DM Sans', sans-serif;
+    transition: background 0.2s;
+  }
+  #btn-copy-id:hover { background: var(--accent); }
+  #btn-copy-id.copied { background: var(--green); color: #fff; }
+
   /* Section header */
   .section-title {
     font-size: 10px;
@@ -380,6 +423,15 @@
     </div>
   </div>
 
+  <!-- User ID card -->
+  <div id="user-id-card">
+    <div id="user-id-label">🪪 Session User ID</div>
+    <div id="user-id-row">
+      <span id="user-id-value">—</span>
+      <button id="btn-copy-id" onclick="copyUserId()">Copy</button>
+    </div>
+  </div>
+
   <div>
     <div class="section-title">📋 Extracted Info</div>
     <div class="info-card" id="card-name">
@@ -465,6 +517,11 @@
 </div>
 
 <script>
+// ── User ID generation ─────────────────────────────────────────────────────
+function generateUserId() {
+  return "user_" + Date.now();
+}
+
 // ── State ──────────────────────────────────────────────────────────────────
 const PHASES = [
   { name: "Rapport & Language",  color: "#A78BFA" },
@@ -479,6 +536,7 @@ const PHASES = [
 const INFO_KEYS = ["name","background","career_context","skills","goal","time_commitment","preferred_language"];
 
 let state = {
+  userId: generateUserId(),
   connected: false,
   turnCount: 0,
   ahaReached: false,
@@ -489,9 +547,25 @@ let state = {
   audioCtx: null,
   mediaStream: null,
   processor: null,
-  pollTimer: null,
   lastTranscriptLen: 0,
 };
+
+// ── User ID display ────────────────────────────────────────────────────────
+function renderUserId() {
+  document.getElementById("user-id-value").textContent = state.userId;
+}
+
+function copyUserId() {
+  navigator.clipboard.writeText(state.userId).then(() => {
+    const btn = document.getElementById("btn-copy-id");
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(() => {
+      btn.textContent = "Copy";
+      btn.classList.remove("copied");
+    }, 1500);
+  });
+}
 
 // ── Phase list render ──────────────────────────────────────────────────────
 function renderPhaseList() {
@@ -510,7 +584,6 @@ function renderPhaseList() {
     </div>`;
   }).join("");
 
-  // Update phase card
   const p = PHASES[phaseIdx];
   document.getElementById("phase-num-label").textContent = `Phase ${phaseIdx + 1}`;
   document.getElementById("phase-name").textContent = p.name;
@@ -568,7 +641,6 @@ function appendMessage(role, text) {
   const empty = document.getElementById("empty");
   if (empty) empty.remove();
 
-  // Check if last bubble is same role — append to it
   const last = chat.querySelector(".msg:last-child");
   if (last && last.dataset.role === role) {
     last.querySelector(".bubble").textContent += " " + text;
@@ -593,7 +665,6 @@ function appendMessage(role, text) {
     document.getElementById("turn-count").textContent = state.turnCount;
   }
 
-  // AHA detection
   if (role === "assistant" && !state.ahaReached &&
       /12 week|12 hafte|ready\?|ready ho\?/i.test(text)) {
     state.ahaReached = true;
@@ -601,32 +672,26 @@ function appendMessage(role, text) {
   }
 }
 
-// ── Polling ────────────────────────────────────────────────────────────────
-// Polling removed — status and transcript driven from WebSocket messages
-
 // ── Audio capture ──────────────────────────────────────────────────────────
 async function startMicCapture() {
-  state.ws = new WebSocket("wss://api.atgvidya.click/ws/onboarding/test_user_fresh_001");
-  state.ws.onopen = () => console.log("[WS] Connected to bridge");
-  state.ws.onclose = () => { console.log("[WS] Bridge disconnected"); updateStatus("disconnected"); }
-  state.ws.onerror = e => console.error("[WS] Error", e);
+  // FIX: single onopen handler — no double assignment
+  state.ws = new WebSocket(`wss://api.atgvidya.click/ws/onboarding/${state.userId}`);
 
-  // Wait for WS to open
   await new Promise((res, rej) => {
-    state.ws.onopen = res;
-    state.ws.onerror = rej;
+    state.ws.onopen = () => { console.log("[WS] Connected:", state.userId); res(); };
+    state.ws.onerror = (e) => { console.error("[WS] Error", e); rej(e); };
   });
+
+  state.ws.onclose = () => { console.log("[WS] Disconnected"); updateStatus("disconnected"); };
 
   state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   state.audioCtx = new AudioContext({ sampleRate: 16000 });
   const source = state.audioCtx.createMediaStreamSource(state.mediaStream);
 
-  // ScriptProcessor to get raw PCM
   state.processor = state.audioCtx.createScriptProcessor(1024, 1, 1);
   state.processor.onaudioprocess = (e) => {
     if (state.ws.readyState !== WebSocket.OPEN) return;
     const float32 = e.inputBuffer.getChannelData(0);
-    // Convert float32 → int16 PCM
     const int16 = new Int16Array(float32.length);
     for (let i = 0; i < float32.length; i++) {
       int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
@@ -655,7 +720,6 @@ function setupAudioPlayback() {
       const msg = JSON.parse(ev.data);
       const t = msg.type;
 
-      // ── Audio playback ──
       if (t === "audio_chunk") {
         if (msg.is_last_chunk) { aiBubble = null; return; }
         if (!msg.audio) return;
@@ -679,30 +743,26 @@ function setupAudioPlayback() {
         return;
       }
 
-      // ── Transcript ──
       if (t === "user_transcript") {
         const txt = (msg.data || '').replace(/<[^>]*>/g, '').trim();
         if (txt) userBuf += txt;
         return;
       }
       if (t === "model_text") {
-        // Flush user buffer before AI response
         if (userBuf.trim()) { appendMessage("user", userBuf.trim()); userBuf = ''; }
         appendMessage("assistant", msg.data || '');
         return;
       }
 
-      // ── Status ──
       if (t === "session_ready" || t === "listening") { updateStatus("listening"); return; }
       if (t === "turn_complete") { userBuf = ''; aiBubble = null; return; }
       if (t === "signal_update" && msg.data) { updateInfo(msg.data); return; }
 
     } catch (e) {
-      console.warn("[Audio playback]", e);
+      console.warn("[WS message]", e);
     }
   };
 }
-
 
 // ── Connect ────────────────────────────────────────────────────────────────
 async function connect() {
@@ -714,7 +774,6 @@ async function connect() {
     setupAudioPlayback();
 
     state.connected = true;
-    document.getElementById("btn-connect").disabled = true;
     document.getElementById("btn-stop").disabled = false;
     updateStatus("listening");
   } catch (e) {
@@ -743,6 +802,11 @@ async function stopSession() {
 // ── New Conversation ───────────────────────────────────────────────────────
 async function newConversation() {
   await stopSession();
+
+  // Generate fresh user ID for new session
+  state.userId = generateUserId();
+  renderUserId();
+
   state.turnCount = 0;
   state.ahaReached = false;
   state.info = {};
@@ -764,6 +828,7 @@ document.getElementById("btn-connect").addEventListener("click", connect);
 document.getElementById("btn-stop").addEventListener("click", stopSession);
 document.getElementById("btn-new").addEventListener("click", newConversation);
 
+renderUserId();
 renderPhaseList();
 updateInfo({});
 </script>
