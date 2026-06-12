@@ -602,130 +602,101 @@ function appendMessage(role, text) {
 }
 
 // ── Polling ────────────────────────────────────────────────────────────────
-async function poll() {
-  try {
-    const res = await fetch("https://api.atgvidya.click/state")
-    const data = await res.json();
-    updateStatus(data.status);
-    updateInfo(data.info);
+// Polling removed — status and transcript driven from WebSocket messages
 
-    // Render new transcript entries
-    const entries = data.transcript || [];
-    for (let i = state.lastTranscriptLen; i < entries.length; i++) {
-      appendMessage(entries[i].role, entries[i].text);
-    }
-    state.lastTranscriptLen = entries.length;
-  } catch (e) {
-    console.warn("Poll error", e);
-  }
-}
-
-// ── Audio capture ──────────────────────────────────────────────────────────
 // ── Audio capture ──────────────────────────────────────────────────────────
 async function startMicCapture() {
-  // ✅ FORCE ws for local dev (fixes wss:// localhost failure)
-  const wsUrl =  "wss://api.atgvidya.click/ws/onboarding/test_user_001";
-
-  state.ws = new WebSocket(wsUrl);
-
+  state.ws = new WebSocket("wss://api.atgvidya.click/ws/onboarding/test_user_fresh_001");
   state.ws.onopen = () => console.log("[WS] Connected to bridge");
-  state.ws.onclose = () => console.log("[WS] Bridge disconnected");
-  state.ws.onerror = (e) => console.error("[WS] Error", e);
+  state.ws.onclose = () => { console.log("[WS] Bridge disconnected"); updateStatus("disconnected"); }
+  state.ws.onerror = e => console.error("[WS] Error", e);
 
-  // ✅ Proper open handling (don’t rely on onerror alone)
-  await new Promise((resolve, reject) => {
-    state.ws.onopen = () => {
-      console.log("[WS] Connection established");
-      resolve();
-    };
-
-    state.ws.onerror = (err) => {
-      console.error("[WS] Failed to connect", err);
-      reject(err);
-    };
-
-    state.ws.onclose = () => {
-      reject(new Error("WebSocket closed before connection"));
-    };
+  // Wait for WS to open
+  await new Promise((res, rej) => {
+    state.ws.onopen = res;
+    state.ws.onerror = rej;
   });
 
-  // ── Mic setup ─────────────────────────────────────────────
-  state.mediaStream = await navigator.mediaDevices.getUserMedia({
-    audio: true,
-    video: false
-  });
-
+  state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   state.audioCtx = new AudioContext({ sampleRate: 16000 });
   const source = state.audioCtx.createMediaStreamSource(state.mediaStream);
 
+  // ScriptProcessor to get raw PCM
   state.processor = state.audioCtx.createScriptProcessor(1024, 1, 1);
-
   state.processor.onaudioprocess = (e) => {
     if (state.ws.readyState !== WebSocket.OPEN) return;
-
     const float32 = e.inputBuffer.getChannelData(0);
-
+    // Convert float32 → int16 PCM
     const int16 = new Int16Array(float32.length);
     for (let i = 0; i < float32.length; i++) {
-      int16[i] = Math.max(
-        -32768,
-        Math.min(32767, Math.round(float32[i] * 32767))
-      );
+      int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
     }
-
-    const b64 = btoa(
-      String.fromCharCode(...new Uint8Array(int16.buffer))
-    );
-
-    state.ws.send(JSON.stringify({
-      type: "audio",
-      data: b64
-    }));
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
+    state.ws.send(JSON.stringify({ type: "audio_chunk", audio: b64 }));
   };
 
   source.connect(state.processor);
   state.processor.connect(state.audioCtx.destination);
-
   console.log("[Mic] Capture started at 16kHz");
 }
 
-// ── Audio playback ─────────────────────────────────────────────────────────
+// ── Audio playback + WebSocket message handler ─────────────────────────────
 function setupAudioPlayback() {
   if (!state.ws) return;
 
   const playCtx = new AudioContext({ sampleRate: 24000 });
   playCtx.resume();
-
   let nextPlayTime = 0;
+  let userBuf = '';
+  let aiBubble = null;
 
   state.ws.onmessage = async (ev) => {
     try {
       const msg = JSON.parse(ev.data);
-      if (msg.type !== "audio") return;
+      const t = msg.type;
 
-      // base64 → binary → Int16 (little-endian) → Float32
-      const b64 = msg.data;
-      const binary = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-      const view = new DataView(binary.buffer);
-      const samples = binary.byteLength / 2;
-      const float32 = new Float32Array(samples);
-      for (let i = 0; i < samples; i++) {
-        float32[i] = view.getInt16(i * 2, true) / 32768.0;
+      // ── Audio playback ──
+      if (t === "audio_chunk") {
+        if (msg.is_last_chunk) { aiBubble = null; return; }
+        if (!msg.audio) return;
+        const binary = Uint8Array.from(atob(msg.audio), c => c.charCodeAt(0));
+        const view = new DataView(binary.buffer);
+        const samples = binary.byteLength / 2;
+        const float32 = new Float32Array(samples);
+        for (let i = 0; i < samples; i++) {
+          float32[i] = view.getInt16(i * 2, true) / 32768.0;
+        }
+        if (float32.length === 0) return;
+        const buf = playCtx.createBuffer(1, float32.length, 24000);
+        buf.copyToChannel(float32, 0);
+        const src = playCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(playCtx.destination);
+        const now = playCtx.currentTime;
+        if (nextPlayTime < now) nextPlayTime = now + 0.05;
+        src.start(nextPlayTime);
+        nextPlayTime += buf.duration;
+        return;
       }
 
-      if (float32.length === 0) return;
+      // ── Transcript ──
+      if (t === "user_transcript") {
+        const txt = (msg.data || '').replace(/<[^>]*>/g, '').trim();
+        if (txt) userBuf += txt;
+        return;
+      }
+      if (t === "model_text") {
+        // Flush user buffer before AI response
+        if (userBuf.trim()) { appendMessage("user", userBuf.trim()); userBuf = ''; }
+        appendMessage("assistant", msg.data || '');
+        return;
+      }
 
-      const buf = playCtx.createBuffer(1, float32.length, 24000);
-      buf.copyToChannel(float32, 0);
+      // ── Status ──
+      if (t === "session_ready" || t === "listening") { updateStatus("listening"); return; }
+      if (t === "turn_complete") { userBuf = ''; aiBubble = null; return; }
+      if (t === "signal_update" && msg.data) { updateInfo(msg.data); return; }
 
-      const src = playCtx.createBufferSource();
-      src.buffer = buf;
-      src.connect(playCtx.destination);
-
-      const now = playCtx.currentTime;
-      if (nextPlayTime < now) nextPlayTime = now + 0.05; // small buffer
-      src.start(nextPlayTime);
-      nextPlayTime += buf.duration;
     } catch (e) {
       console.warn("[Audio playback]", e);
     }
@@ -739,20 +710,13 @@ async function connect() {
   updateStatus("connecting");
 
   try {
-    // WS connect starts the Gemini session automatically
     await startMicCapture();
-
-
-
-
     setupAudioPlayback();
 
     state.connected = true;
     document.getElementById("btn-connect").disabled = true;
     document.getElementById("btn-stop").disabled = false;
-
-    // Start polling for transcript + info
-    state.pollTimer = setInterval(poll, 800);
+    updateStatus("listening");
   } catch (e) {
     console.error("Connect error", e);
     updateStatus("error");
@@ -768,7 +732,6 @@ async function stopSession() {
   if (state.audioCtx)  { state.audioCtx.close(); state.audioCtx = null; }
   if (state.mediaStream) { state.mediaStream.getTracks().forEach(t => t.stop()); state.mediaStream = null; }
   if (state.ws) { state.ws.close(); state.ws = null; }
-  if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
 
   state.connected = false;
   updateStatus("disconnected");
