@@ -716,7 +716,7 @@ async function startMicCapture() {
       int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
     }
     const b64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
-    state.ws.send(JSON.stringify({ type: "audio", data: b64 }));
+    state.ws.send(JSON.stringify({ type: "audio_chunk", audio: b64 }));
   };
 
   source.connect(state.processor);
