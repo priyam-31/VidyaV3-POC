@@ -92,6 +92,49 @@
     letter-spacing: 1px;
   }
 
+  /* User ID card */
+  #user-id-card {
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+  #user-id-label {
+    font-size: 9px;
+    color: var(--accent2);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  #user-id-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #user-id-value {
+    font-size: 11px;
+    color: var(--text);
+    font-family: monospace;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #btn-copy-id {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    background: var(--subtle);
+    color: var(--text);
+    border: 1px solid var(--border);
+    cursor: pointer;
+    flex-shrink: 0;
+    font-family: 'DM Sans', sans-serif;
+    transition: background 0.2s;
+  }
+  #btn-copy-id:hover { background: var(--accent); }
+  #btn-copy-id.copied { background: var(--green); color: #fff; }
+
   /* Section header */
   .section-title {
     font-size: 10px;
@@ -380,6 +423,15 @@
     </div>
   </div>
 
+  <!-- User ID card -->
+  <div id="user-id-card">
+    <div id="user-id-label">🪪 Session User ID</div>
+    <div id="user-id-row">
+      <span id="user-id-value">—</span>
+      <button id="btn-copy-id" onclick="copyUserId()">Copy</button>
+    </div>
+  </div>
+
   <div>
     <div class="section-title">📋 Extracted Info</div>
     <div class="info-card" id="card-name">
@@ -465,6 +517,20 @@
 </div>
 
 <script>
+// ── User ID generation ─────────────────────────────────────────────────────
+function generateUserId() {
+  return "user_" + Date.now();
+}
+
+function copyUserId() {
+  navigator.clipboard.writeText(state.userId).then(() => {
+    const btn = document.getElementById("btn-copy-id");
+    btn.textContent = "Copied!";
+    btn.classList.add("copied");
+    setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1500);
+  });
+}
+
 // ── State ──────────────────────────────────────────────────────────────────
 const PHASES = [
   { name: "Rapport & Language",  color: "#A78BFA" },
@@ -479,6 +545,7 @@ const PHASES = [
 const INFO_KEYS = ["name","background","career_context","skills","goal","time_commitment","preferred_language"];
 
 let state = {
+  userId: generateUserId(),
   connected: false,
   turnCount: 0,
   ahaReached: false,
@@ -748,6 +815,8 @@ async function stopSession() {
 // ── New Conversation ───────────────────────────────────────────────────────
 async function newConversation() {
   await stopSession();
+  state.userId = generateUserId();
+  document.getElementById("user-id-value").textContent = state.userId;
   state.turnCount = 0;
   state.ahaReached = false;
   state.info = {};
@@ -768,6 +837,9 @@ async function newConversation() {
 document.getElementById("btn-connect").addEventListener("click", connect);
 document.getElementById("btn-stop").addEventListener("click", stopSession);
 document.getElementById("btn-new").addEventListener("click", newConversation);
+
+// Render user ID on load
+document.getElementById("user-id-value").textContent = state.userId;
 
 renderPhaseList();
 updateInfo({});
