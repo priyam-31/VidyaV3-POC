@@ -690,7 +690,7 @@ async function poll() {
 // ── Audio capture ──────────────────────────────────────────────────────────
 async function startMicCapture() {
   const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-  state.ws = new WebSocket(`wss://api.atgvidya.click/ws/onboarding/${state.userId}`);
+  state.ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
   state.ws.onopen = () => console.log("[WS] Connected to bridge");
   state.ws.onclose = () => console.log("[WS] Bridge disconnected");
   state.ws.onerror = e => console.error("[WS] Error", e);
@@ -716,7 +716,7 @@ async function startMicCapture() {
       int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
     }
     const b64 = btoa(String.fromCharCode(...new Uint8Array(int16.buffer)));
-    state.ws.send(JSON.stringify({ type: "audio_chunk", audio: b64 }));
+    state.ws.send(JSON.stringify({ type: "audio", data: b64 }));
   };
 
   source.connect(state.processor);
