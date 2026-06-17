@@ -690,7 +690,7 @@ async function poll() {
 // ── Audio capture ──────────────────────────────────────────────────────────
 async function startMicCapture() {
   const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
-  state.ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
+  state.ws = new WebSocket(`wss://api.atgvidya.click/ws/vidya/${state.userId}`);
   state.ws.onopen = () => console.log("[WS] Connected to bridge");
   state.ws.onclose = () => console.log("[WS] Bridge disconnected");
   state.ws.onerror = e => console.error("[WS] Error", e);
