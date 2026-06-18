@@ -678,10 +678,21 @@ async function poll() {
 
     // Render new transcript entries
     const entries = data.transcript || [];
-    for (let i = state.lastTranscriptLen; i < entries.length; i++) {
-      appendMessage(entries[i].role, entries[i].text);
-    }
-    state.lastTranscriptLen = entries.length;
+for (let i = state.lastTranscriptLen; i < entries.length; i++) {
+  appendMessage(entries[i].role, entries[i].text);
+  state.transcript.push(entries[i]);
+  if (entries[i].text && entries[i].text.includes("[SESSION_CLOSED]")) {
+    console.log("[SESSION] Closed — saving to Pinecone");
+    fetch(`https://api.atgvidya.click/save-session/${state.userId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript: state.transcript })
+    }).then(r => r.json())
+      .then(d => console.log("[SESSION] Saved:", d))
+      .catch(e => console.error("[SESSION] Save failed", e));
+  }
+}
+state.lastTranscriptLen = entries.length;
   } catch (e) {
     console.warn("Poll error", e);
   }
