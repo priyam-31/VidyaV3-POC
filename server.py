@@ -3,7 +3,6 @@ Vidya Voice POC — FastAPI server (single port, Render-compatible)
 Serves index.html, handles WebSocket bridge, and manages VidyaVoiceSession.
 Run: uvicorn server:app --host 0.0.0.0 --port $PORT
 """
-
 import os
 import asyncio
 import threading
@@ -12,75 +11,76 @@ import json
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from dotenv import load_dotenv
-
 load_dotenv()
-
 from realtime_handler import VidyaVoiceSession
-
 app = FastAPI()
-
 # Shared session reference
 session_ref: dict = {}
-
 @app.get("/")
 async def index():
     return FileResponse("index.html")
-
 @app.websocket("/ws")
 async def websocket_bridge(websocket: WebSocket):
     """Single WebSocket endpoint — bridges browser mic ↔ Gemini Live."""
     await websocket.accept()
     print("[WS] Browser connected", flush=True)
-
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         await websocket.close()
         return
 
-    transcript_log = []
+    # Wait for config message first (sent by frontend before any audio)
+    chosen_languages = []
+    try:
+        first_msg = await asyncio.wait_for(websocket.receive_text(), timeout=5.0)
+        msg = json.loads(first_msg)
+        if msg.get("type") == "config":
+            chosen_languages = msg.get("languages", [])
+            print(f"[WS] Language config received: {chosen_languages}", flush=True)
+        else:
+            # Not a config message — process it normally after session starts
+            print(f"[WS] First message was not config (type={msg.get('type')}), proceeding with no language config", flush=True)
+    except asyncio.TimeoutError:
+        print("[WS] No config message received within 5s, proceeding without language config", flush=True)
+    except Exception as e:
+        print(f"[WS] Error reading config message: {e}", flush=True)
 
+    transcript_log = []
     def on_user(t):
         transcript_log.append({"role": "user", "text": t})
         session_ref["transcript"] = transcript_log[:]
-
     def on_asst(t):
         transcript_log.append({"role": "assistant", "text": t})
         session_ref["transcript"] = transcript_log[:]
-
     def on_status(s):
         session_ref["status"] = s
         print(f"[Server] Status: {s}", flush=True)
-
     def on_info(i):
         session_ref["info"] = i
-
     session = VidyaVoiceSession(
         api_key=api_key,
         on_user_transcript=on_user,
         on_assistant_transcript=on_asst,
         on_status_change=on_status,
         on_info_update=on_info,
+        chosen_languages=chosen_languages,
     )
-
     # Give session a reference to this websocket for audio playback
     session._ws = websocket
     session_ref["session"] = session
     session_ref["status"] = "connecting"
     session_ref["transcript"] = []
     session_ref["info"] = {}
-
+    session_ref["chosen_languages"] = chosen_languages
     # Run Gemini session in background thread
     loop = asyncio.get_event_loop()
-
     def run_session():
         new_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(new_loop)
         new_loop.run_until_complete(session.run())
         new_loop.close()
-
     t = threading.Thread(target=run_session, daemon=True, name="VidyaSession")
     t.start()
-
     # Forward browser audio → session._audio_queue
     try:
         while True:
@@ -100,11 +100,11 @@ async def websocket_bridge(websocket: WebSocket):
         session.stop()
         session._ws = None
         session_ref["status"] = "disconnected"
-
 @app.get("/state")
 async def get_state():
     return {
         "status": session_ref.get("status", "disconnected"),
         "transcript": session_ref.get("transcript", []),
         "info": session_ref.get("info", {}),
+        "chosen_languages": session_ref.get("chosen_languages", []),
     }
