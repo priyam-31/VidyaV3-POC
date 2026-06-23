@@ -24,7 +24,6 @@ import asyncio
 import re
 import base64
 import json
-import sys
 import os
 from typing import Callable, Optional, Dict
 from dotenv import load_dotenv
@@ -43,22 +42,8 @@ try:
 except ImportError:
     raise ImportError("pip install google-genai")
 
-from vidya_prompt import get_system_prompt
-
-# Setup path for learner system imports
-parent_dir = os.path.dirname(__file__)
-sys.path.insert(0, parent_dir)
-sys.path.insert(0, os.path.join(parent_dir, 'models'))
-
-# Import learner system modules
-try:
-    from models.learner_state_model import SignalExtractionResult
-    from services.prompt_injector import PromptContextInjector
-    LEARNER_SYSTEM_AVAILABLE = True
-except Exception as e:
-    print(f"[RealTime] Learner system not available: {e}", flush=True)
-    LEARNER_SYSTEM_AVAILABLE = False
-
+from app.vidya_prompt import get_system_prompt
+LEARNER_SYSTEM_AVAILABLE = False
 
 # Audio constants
 MIC_RATE     = 16000   # Gemini input: 16kHz PCM
@@ -112,10 +97,36 @@ class InfoExtractor:
                         break
 
         if not self.info["preferred_language"]:
-            hindi = ["hoon","hai","mein","kya","haan","nahin","theek","chalega",
-                     "yaar","bhai","samajh","matlab","bilkul","sahi","dekho"]
-            if sum(1 for w in hindi if w in tl) >= 2:
+            hindi_words = ["hoon","hai","mein","kya","haan","nahin","theek","chalega",
+                           "yaar","bhai","samajh","matlab","bilkul","sahi","dekho"]
+            tamil_words = ["naan","ungal","enna","romba","vanakkam","illa","seri"]
+            telugu_words = ["nenu","meeru","emiti","chala","bagundi","namaskaaram"]
+            bengali_words = ["ami","amar","tumi","tomr","achho","bhalo","ki","haan"]
+            malayalam_words = ["njan","ningal","enthu","sheriyanu","undo","alle"]
+            marathi_words = ["mi","majha","tumhi","aahe","nahi","bara","chan"]
+            gujarati_words = ["hoon","tamhe","kem","chho","saru","nathi","hari"]
+            kannada_words = ["naanu","neevu","enu","houdu","illa","chennagide"]
+            urdu_words = ["mein","aap","kya","haan","nahi","theek","shukriya","janab"]
+
+            tl_words = set(tl.split())
+            if sum(1 for w in hindi_words if w in tl) >= 2:
                 self.info["preferred_language"] = "Hindi / Hinglish"
+            elif sum(1 for w in tamil_words if w in tl_words) >= 2:
+                self.info["preferred_language"] = "Tamil"
+            elif sum(1 for w in telugu_words if w in tl_words) >= 2:
+                self.info["preferred_language"] = "Telugu"
+            elif sum(1 for w in bengali_words if w in tl_words) >= 2:
+                self.info["preferred_language"] = "Bengali"
+            elif sum(1 for w in malayalam_words if w in tl_words) >= 2:
+                self.info["preferred_language"] = "Malayalam"
+            elif sum(1 for w in marathi_words if w in tl_words) >= 2:
+                self.info["preferred_language"] = "Marathi"
+            elif sum(1 for w in gujarati_words if w in tl_words) >= 2:
+                self.info["preferred_language"] = "Gujarati"
+            elif sum(1 for w in kannada_words if w in tl_words) >= 2:
+                self.info["preferred_language"] = "Kannada"
+            elif sum(1 for w in urdu_words if w in tl) >= 2:
+                self.info["preferred_language"] = "Urdu"
             elif "english" in tl:
                 self.info["preferred_language"] = "English"
 
@@ -210,6 +221,7 @@ class VidyaVoiceSession:
         on_assistant_transcript: Optional[Callable[[str], None]] = None,
         on_status_change: Optional[Callable[[str], None]] = None,
         on_info_update: Optional[Callable[[Dict], None]] = None,
+        chosen_languages: Optional[list] = None,
         # Learner system components
         learner_state_manager = None,
         signal_orchestrator = None,
@@ -222,6 +234,7 @@ class VidyaVoiceSession:
         self._on_asst   = on_assistant_transcript or (lambda t: print(f"[Vidya] {t}"))
         self._on_status = on_status_change or (lambda s: print(f"[Status] {s}"))
         self._on_info   = on_info_update or (lambda i: None)
+        self.chosen_languages = chosen_languages or []
 
         # Learner system callbacks
         self._on_learner_signals = on_learner_signals or (lambda s: None)
@@ -347,7 +360,11 @@ class VidyaVoiceSession:
         config = types.LiveConnectConfig(
             response_modalities=["AUDIO"],
             system_instruction=types.Content(
-                parts=[types.Part(text=get_system_prompt(learner_context, scenario_context=scenario_context))]
+                parts=[types.Part(text=get_system_prompt(
+                    learner_context,
+                    scenario_context=scenario_context,
+                    chosen_languages=self.chosen_languages if self.chosen_languages else None,
+                ))]
             ),
             speech_config=types.SpeechConfig(
                 voice_config=types.VoiceConfig(
