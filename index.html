@@ -32,6 +32,145 @@
     overflow: hidden;
   }
 
+  /* ── Language Gate Overlay ── */
+  #lang-gate {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #lang-gate-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    width: 480px;
+    max-width: 94vw;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  #lang-gate-logo {
+    text-align: center;
+  }
+  #lang-gate-logo .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 40px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #A78BFA, #6D28D9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+  }
+  #lang-gate-logo .logo-sub {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  #lang-gate-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+  }
+  #lang-gate-sub {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+    margin-top: -16px;
+  }
+
+  #lang-chips {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .lang-chip {
+    position: relative;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.18s;
+    user-select: none;
+  }
+  .lang-chip:hover {
+    border-color: var(--accent);
+    color: var(--text);
+  }
+  .lang-chip.selected {
+    background: linear-gradient(135deg, #1e1040, #2d1a6e);
+    border-color: var(--accent);
+    color: var(--accent2);
+  }
+
+  .lang-chip .order-badge {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  .lang-chip.selected .order-badge {
+    display: flex;
+  }
+
+  #lang-hint {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+  }
+  #lang-hint span {
+    color: var(--accent2);
+    font-weight: 600;
+  }
+
+  #btn-lang-continue {
+    background: linear-gradient(135deg, #6D28D9, #A78BFA);
+    color: white;
+    padding: 13px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  #btn-lang-continue.ready {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  #btn-lang-continue.ready:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+  }
+
   /* ── Sidebar ── */
   #sidebar {
     width: 280px;
@@ -67,7 +206,6 @@
     margin-top: 2px;
   }
 
-  /* Status pill */
   #status-row {
     display: flex;
     align-items: center;
@@ -92,7 +230,6 @@
     letter-spacing: 1px;
   }
 
-  /* User ID card */
   #user-id-card {
     background: var(--bg);
     border: 1px solid var(--accent);
@@ -135,7 +272,6 @@
   #btn-copy-id:hover { background: var(--accent); }
   #btn-copy-id.copied { background: var(--green); color: #fff; }
 
-  /* Section header */
   .section-title {
     font-size: 10px;
     font-weight: 700;
@@ -145,7 +281,6 @@
     margin-bottom: 8px;
   }
 
-  /* Info cards */
   .info-card {
     background: var(--bg);
     border: 1px dashed var(--border);
@@ -177,7 +312,6 @@
     font-style: normal;
   }
 
-  /* Progress bar */
   .progress-wrap { margin-top: 4px; }
   .progress-label {
     font-size: 10px;
@@ -199,7 +333,6 @@
     width: 0%;
   }
 
-  /* Phase tracker */
   .phase-item {
     display: flex;
     align-items: center;
@@ -233,7 +366,6 @@
     margin-top: 2px;
   }
 
-  /* Chat */
   #chat {
     flex: 1;
     overflow-y: auto;
@@ -298,7 +430,6 @@
   }
   .msg.user .msg-time { text-align: right; }
 
-  /* Controls */
   #controls {
     padding: 16px 28px 20px;
     border-top: 1px solid var(--border);
@@ -354,7 +485,6 @@
     display: none;
   }
 
-  /* Right panel */
   #panel {
     width: 160px;
     min-width: 160px;
@@ -394,20 +524,54 @@
   .aha-card .aha-icon { font-size: 24px; }
   .aha-card .aha-text { font-size: 12px; font-weight: 700; color: #D1FAE5; margin-top: 4px; }
 
-  /* Animations */
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
   @keyframes fadeUp {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+  @keyframes gateOut {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.97); }
+  }
 
-  /* Scrollbar */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 </style>
 </head>
 <body>
+
+<!-- ── Language Gate ── -->
+<div id="lang-gate">
+  <div id="lang-gate-box">
+    <div id="lang-gate-logo">
+      <div class="logo-text">VIDYA</div>
+      <div class="logo-sub">Gemini Live · Voice</div>
+    </div>
+
+    <div>
+      <div id="lang-gate-title">Choose your language(s)</div>
+      <div id="lang-gate-sub" style="margin-top:6px;">You can pick more than one. First selected = default.</div>
+    </div>
+
+    <div id="lang-chips">
+      <div class="lang-chip" data-lang="English">English<div class="order-badge"></div></div>
+      <div class="lang-chip" data-lang="Hindi">Hindi<div class="order-badge"></div></div>
+      <div class="lang-chip" data-lang="Bengali">Bengali<div class="order-badge"></div></div>
+      <div class="lang-chip" data-lang="Tamil">Tamil<div class="order-badge"></div></div>
+      <div class="lang-chip" data-lang="Telugu">Telugu<div class="order-badge"></div></div>
+      <div class="lang-chip" data-lang="Marathi">Marathi<div class="order-badge"></div></div>
+      <div class="lang-chip" data-lang="Gujarati">Gujarati<div class="order-badge"></div></div>
+      <div class="lang-chip" data-lang="Kannada">Kannada<div class="order-badge"></div></div>
+      <div class="lang-chip" data-lang="Malayalam">Malayalam<div class="order-badge"></div></div>
+      <div class="lang-chip" data-lang="Urdu">Urdu<div class="order-badge"></div></div>
+    </div>
+
+    <div id="lang-hint">Select at least one language to continue</div>
+
+    <button id="btn-lang-continue">Continue →</button>
+  </div>
+</div>
 
 <!-- ── Sidebar ── -->
 <aside id="sidebar">
@@ -423,7 +587,6 @@
     </div>
   </div>
 
-  <!-- User ID card -->
   <div id="user-id-card">
     <div id="user-id-label">🪪 Session User ID</div>
     <div id="user-id-row">
@@ -479,14 +642,14 @@
 <main id="main">
   <div id="topbar">
     <h1>🎙️ Vidya — Voice Mode</h1>
-    <p>Real-time voice conversation. Speak naturally — Hindi, English, or mix.</p>
+    <p id="topbar-sub">Real-time voice conversation. Speak naturally.</p>
   </div>
 
   <div id="chat">
     <div class="empty-state" id="empty">
       <div class="icon">🎤</div>
       <div class="title">Connect and start speaking</div>
-      <div class="sub">Vidya will greet you and adapt to your language</div>
+      <div class="sub">Vidya will greet you in your chosen language</div>
     </div>
   </div>
 
@@ -507,7 +670,7 @@
 
   <div class="phase-card" id="phase-card" style="border: 1px solid var(--border);">
     <div class="p-label" id="phase-num-label">Phase 1</div>
-    <div class="p-name" id="phase-name" style="color: var(--accent2);">Rapport &amp; Language</div>
+    <div class="p-name" id="phase-name" style="color: var(--accent2);">Rapport</div>
   </div>
 
   <div class="aha-card" id="aha-card">
@@ -517,6 +680,55 @@
 </div>
 
 <script>
+// ── Language Gate ──────────────────────────────────────────────────────────
+const LANGUAGES = ["English","Hindi","Bengali","Tamil","Telugu","Marathi","Gujarati","Kannada","Malayalam","Urdu"];
+let chosenLanguages = []; // ordered by selection
+
+document.querySelectorAll(".lang-chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    const lang = chip.dataset.lang;
+    const idx = chosenLanguages.indexOf(lang);
+    if (idx === -1) {
+      // Select
+      chosenLanguages.push(lang);
+      chip.classList.add("selected");
+    } else {
+      // Deselect — remove and reorder remaining badges
+      chosenLanguages.splice(idx, 1);
+      chip.classList.remove("selected");
+    }
+    // Update all badges
+    document.querySelectorAll(".lang-chip").forEach(c => {
+      const i = chosenLanguages.indexOf(c.dataset.lang);
+      const badge = c.querySelector(".order-badge");
+      if (i !== -1) {
+        badge.textContent = i + 1;
+      }
+    });
+    // Update hint and button
+    if (chosenLanguages.length === 0) {
+      document.getElementById("lang-hint").innerHTML = "Select at least one language to continue";
+      document.getElementById("btn-lang-continue").classList.remove("ready");
+    } else {
+      const defaultLang = chosenLanguages[0];
+      document.getElementById("lang-hint").innerHTML =
+        `Default: <span>${defaultLang}</span> · ${chosenLanguages.length} selected`;
+      document.getElementById("btn-lang-continue").classList.add("ready");
+    }
+  });
+});
+
+document.getElementById("btn-lang-continue").addEventListener("click", () => {
+  if (chosenLanguages.length === 0) return;
+  // Update topbar subtitle
+  document.getElementById("topbar-sub").textContent =
+    `Speaking in: ${chosenLanguages.join(", ")} · Default: ${chosenLanguages[0]}`;
+  // Animate gate out
+  const gate = document.getElementById("lang-gate");
+  gate.style.animation = "gateOut 0.25s ease forwards";
+  setTimeout(() => gate.remove(), 260);
+});
+
 // ── User ID generation ─────────────────────────────────────────────────────
 function generateUserId() {
   return "user_" + Date.now();
@@ -533,7 +745,7 @@ function copyUserId() {
 
 // ── State ──────────────────────────────────────────────────────────────────
 const PHASES = [
-  { name: "Rapport & Language",  color: "#A78BFA" },
+  { name: "Rapport",             color: "#A78BFA" },
   { name: "Identity & Context",  color: "#60A5FA" },
   { name: "Urgency & Pain",      color: "#F97316" },
   { name: "Skills & Resources",  color: "#34D399" },
@@ -577,7 +789,6 @@ function renderPhaseList() {
     </div>`;
   }).join("");
 
-  // Update phase card
   const p = PHASES[phaseIdx];
   document.getElementById("phase-num-label").textContent = `Phase ${phaseIdx + 1}`;
   document.getElementById("phase-name").textContent = p.name;
@@ -635,7 +846,6 @@ function appendMessage(role, text) {
   const empty = document.getElementById("empty");
   if (empty) empty.remove();
 
-  // Check if last bubble is same role — append to it
   const last = chat.querySelector(".msg:last-child");
   if (last && last.dataset.role === role) {
     last.querySelector(".bubble").textContent += " " + text;
@@ -660,7 +870,6 @@ function appendMessage(role, text) {
     document.getElementById("turn-count").textContent = state.turnCount;
   }
 
-  // AHA detection
   if (role === "assistant" && !state.ahaReached &&
       /12 week|12 hafte|ready\?|ready ho\?/i.test(text)) {
     state.ahaReached = true;
@@ -676,23 +885,22 @@ async function poll() {
     updateStatus(data.status);
     updateInfo(data.info);
 
-    // Render new transcript entries
     const entries = data.transcript || [];
-for (let i = state.lastTranscriptLen; i < entries.length; i++) {
-  appendMessage(entries[i].role, entries[i].text);
-  state.transcript.push(entries[i]);
-  if (entries[i].text && entries[i].text.includes("[SESSION_CLOSED]")) {
-    console.log("[SESSION] Closed — saving to Pinecone");
-    fetch(`https://api.atgvidya.click/save-session/${state.userId}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transcript: state.transcript })
-    }).then(r => r.json())
-      .then(d => console.log("[SESSION] Saved:", d))
-      .catch(e => console.error("[SESSION] Save failed", e));
-  }
-}
-state.lastTranscriptLen = entries.length;
+    for (let i = state.lastTranscriptLen; i < entries.length; i++) {
+      appendMessage(entries[i].role, entries[i].text);
+      state.transcript.push(entries[i]);
+      if (entries[i].text && entries[i].text.includes("[SESSION_CLOSED]")) {
+        console.log("[SESSION] Closed — saving to Pinecone");
+        fetch(`https://api.atgvidya.click/save-session/${state.userId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transcript: state.transcript })
+        }).then(r => r.json())
+          .then(d => console.log("[SESSION] Saved:", d))
+          .catch(e => console.error("[SESSION] Save failed", e));
+      }
+    }
+    state.lastTranscriptLen = entries.length;
   } catch (e) {
     console.warn("Poll error", e);
   }
@@ -702,26 +910,24 @@ state.lastTranscriptLen = entries.length;
 async function startMicCapture() {
   const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
   state.ws = new WebSocket(`${wsProtocol}//${location.host}/ws`);
-  state.ws.onopen = () => console.log("[WS] Connected to bridge");
-  state.ws.onclose = () => console.log("[WS] Bridge disconnected");
-  state.ws.onerror = e => console.error("[WS] Error", e);
 
-  // Wait for WS to open
   await new Promise((res, rej) => {
     state.ws.onopen = res;
     state.ws.onerror = rej;
   });
 
+  // Send language config as first message before any audio
+  state.ws.send(JSON.stringify({ type: "config", languages: chosenLanguages }));
+  console.log("[WS] Sent language config:", chosenLanguages);
+
   state.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
   state.audioCtx = new AudioContext({ sampleRate: 16000 });
   const source = state.audioCtx.createMediaStreamSource(state.mediaStream);
 
-  // ScriptProcessor to get raw PCM
   state.processor = state.audioCtx.createScriptProcessor(1024, 1, 1);
   state.processor.onaudioprocess = (e) => {
     if (state.ws.readyState !== WebSocket.OPEN) return;
     const float32 = e.inputBuffer.getChannelData(0);
-    // Convert float32 → int16 PCM
     const int16 = new Int16Array(float32.length);
     for (let i = 0; i < float32.length; i++) {
       int16[i] = Math.max(-32768, Math.min(32767, Math.round(float32[i] * 32767)));
@@ -741,7 +947,6 @@ function setupAudioPlayback() {
 
   const playCtx = new AudioContext({ sampleRate: 24000 });
   playCtx.resume();
-
   let nextPlayTime = 0;
 
   state.ws.onmessage = async (ev) => {
@@ -749,27 +954,22 @@ function setupAudioPlayback() {
       const msg = JSON.parse(ev.data);
       if (msg.type !== "audio") return;
 
-      // base64 → binary → Int16 (little-endian) → Float32
-      const b64 = msg.data;
-      const binary = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const binary = Uint8Array.from(atob(msg.data), c => c.charCodeAt(0));
       const view = new DataView(binary.buffer);
       const samples = binary.byteLength / 2;
       const float32 = new Float32Array(samples);
       for (let i = 0; i < samples; i++) {
         float32[i] = view.getInt16(i * 2, true) / 32768.0;
       }
-
       if (float32.length === 0) return;
 
       const buf = playCtx.createBuffer(1, float32.length, 24000);
       buf.copyToChannel(float32, 0);
-
       const src = playCtx.createBufferSource();
       src.buffer = buf;
       src.connect(playCtx.destination);
-
       const now = playCtx.currentTime;
-      if (nextPlayTime < now) nextPlayTime = now + 0.05; // small buffer
+      if (nextPlayTime < now) nextPlayTime = now + 0.05;
       src.start(nextPlayTime);
       nextPlayTime += buf.duration;
     } catch (e) {
@@ -778,26 +978,18 @@ function setupAudioPlayback() {
   };
 }
 
-
 // ── Connect ────────────────────────────────────────────────────────────────
 async function connect() {
   document.getElementById("btn-connect").disabled = true;
   updateStatus("connecting");
 
   try {
-    // WS connect starts the Gemini session automatically
     await startMicCapture();
-
-
-
-
     setupAudioPlayback();
 
     state.connected = true;
     document.getElementById("btn-connect").disabled = true;
     document.getElementById("btn-stop").disabled = false;
-
-    // Start polling for transcript + info
     state.pollTimer = setInterval(poll, 800);
   } catch (e) {
     console.error("Connect error", e);
@@ -809,7 +1001,6 @@ async function connect() {
 // ── Stop ───────────────────────────────────────────────────────────────────
 async function stopSession() {
   if (state.ws && state.ws.readyState === WebSocket.OPEN) state.ws.send(JSON.stringify({ type: "stop" }));
-
   if (state.processor) { state.processor.disconnect(); state.processor = null; }
   if (state.audioCtx)  { state.audioCtx.close(); state.audioCtx = null; }
   if (state.mediaStream) { state.mediaStream.getTracks().forEach(t => t.stop()); state.mediaStream = null; }
@@ -839,7 +1030,7 @@ async function newConversation() {
     <div class="empty-state" id="empty">
       <div class="icon">🎤</div>
       <div class="title">Connect and start speaking</div>
-      <div class="sub">Vidya will greet you and adapt to your language</div>
+      <div class="sub">Vidya will greet you in your chosen language</div>
     </div>`;
   updateInfo({});
 }
@@ -849,9 +1040,7 @@ document.getElementById("btn-connect").addEventListener("click", connect);
 document.getElementById("btn-stop").addEventListener("click", stopSession);
 document.getElementById("btn-new").addEventListener("click", newConversation);
 
-// Render user ID on load
 document.getElementById("user-id-value").textContent = state.userId;
-
 renderPhaseList();
 updateInfo({});
 </script>
