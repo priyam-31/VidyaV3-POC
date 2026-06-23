@@ -42,7 +42,7 @@ try:
 except ImportError:
     raise ImportError("pip install google-genai")
 
-from app.vidya_prompt import get_system_prompt
+from vidya_prompt import get_system_prompt
 LEARNER_SYSTEM_AVAILABLE = False
 
 # Audio constants
